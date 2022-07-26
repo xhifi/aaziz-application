@@ -1,18 +1,10 @@
 const EmployeeModel = require("../../models/employee");
 const { StatusCodes } = require("http-status-codes");
-const { BadRequestError } = require("../../errors");
+const { BadRequestError, NotFoundError } = require("../../errors");
 
 const addEmployee = async (req, res) => {
   const {
-    body: {
-      sexualTitle,
-      firstName,
-      middleName,
-      surName,
-      dateOfBirth,
-      NINumber,
-      addressOfEmployee: { streetAddress, city, state, postCode },
-    },
+    body: { sexualTitle, firstName, middleName, surName, dateOfBirth, NINumber, streetAddress, city, state, postCode },
   } = req;
   const body = req.body;
 
@@ -60,15 +52,56 @@ const getAllEmployees = async (req, res) => {
     query: { page, limit },
   } = req;
 
-  console.log(page, limit);
-
   const employees = await EmployeeModel.find();
+
+  if (employees.length === 0) throw new Error("No Employees in record");
+
   res.status(StatusCodes.OK).send(employees);
 };
 
-const getEmployeeById = async (req, res) => {};
-const updateEmployeeById = async (req, res) => {};
-const deleteEmployeeById = async (req, res) => {};
+const getEmployeeById = async (req, res) => {
+  const {
+    params: { id },
+  } = req;
+
+  const employee = await EmployeeModel.findById(id);
+  if (!employee) throw new NotFoundError(`No employee with ${id} found in database`);
+
+  res.status(200).json(employee);
+};
+
+// Update Employee
+const updateEmployeeById = async (req, res) => {
+  const {
+    params: { id },
+    body,
+  } = req;
+  const employeeExists = await EmployeeModel.findById(id);
+  console.log(employeeExists);
+
+  if (!body) throw new Error("Make changes first to save.");
+
+  const mutated = { ...employeeExists, ...body };
+  const updatedEmployee = await EmployeeModel.findByIdAndUpdate(mutated, id);
+
+  res.send(StatusCodes.OK).json(updatedEmployee);
+};
+
+// Employee Delete by ID
+const deleteEmployeeById = async (req, res) => {
+  const {
+    params: { id },
+  } = req;
+
+  const deletedEmployee = await EmployeeModel.findByIdAndDelete(id);
+  if (!deletedEmployee) throw new NotFoundError("No employee with provided ID exists");
+
+  res
+    .status(StatusCodes.OK)
+    .json(
+      `The employee ${deletedEmployee._id}:${deletedEmployee.employeePersonalData.firstName} ${deletedEmployee.employeePersonalData?.middleName} ${deletedEmployee.employeePersonalData?.surName} ${deletedEmployee.employeePersonalData.firstName} has been deleted`
+    );
+};
 const addMultipleEmployees = async (req, res) => {};
 
 module.exports = { addEmployee, getEmployeeById, updateEmployeeById, deleteEmployeeById, addMultipleEmployees, getAllEmployees };
